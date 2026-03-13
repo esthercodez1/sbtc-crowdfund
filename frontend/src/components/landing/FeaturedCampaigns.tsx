@@ -2,12 +2,13 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import CampaignCard from "@/components/CampaignCard";
-import { mockCampaigns } from "@/data/mockData";
+import { useCampaigns } from "@/hooks/useCampaigns";
 import { ArrowRight } from "lucide-react";
 import { sectionVariants, staggerContainer } from "./shared";
 
 export default function FeaturedCampaigns() {
-  const featured = mockCampaigns.filter((c) => c.status === "active" || c.status === "funded").slice(0, 6);
+  const { data: campaigns = [] } = useCampaigns();
+  const featured = campaigns.filter((c) => c.status === "active" || c.status === "funded").slice(0, 6);
 
   return (
     <motion.section

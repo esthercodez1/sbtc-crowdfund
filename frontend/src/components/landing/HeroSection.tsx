@@ -3,12 +3,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
-
-const stats = [
-  { label: "Total Raised", value: 211200, suffix: " STX" },
-  { label: "Campaigns", value: 48, suffix: "" },
-  { label: "Success Rate", value: 87, suffix: "%" },
-];
+import { useCampaigns } from "@/hooks/useCampaigns";
 
 function AnimatedCounter({ end, suffix = "" }: { end: number; suffix?: string }) {
   const [count, setCount] = useState(0);
@@ -46,6 +41,18 @@ export default function HeroSection() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 100]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+
+  const { data: campaigns = [] } = useCampaigns();
+  const totalRaised = Math.round(campaigns.reduce((sum, c) => sum + c.raisedAmount, 0));
+  const totalCampaigns = campaigns.length;
+  const funded = campaigns.filter((c) => c.status === "funded" || c.status === "completed").length;
+  const successRate = totalCampaigns > 0 ? Math.round((funded / totalCampaigns) * 100) : 0;
+
+  const stats = [
+    { label: "Total Raised", value: totalRaised, suffix: " STX" },
+    { label: "Campaigns", value: totalCampaigns, suffix: "" },
+    { label: "Success Rate", value: successRate, suffix: "%" },
+  ];
 
   return (
     <section ref={heroRef} className="relative min-h-[60vh] sm:min-h-[90vh] flex items-center gradient-hero overflow-hidden">
