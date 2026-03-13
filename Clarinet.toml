@@ -1,0 +1,25 @@
+[project]
+name = 'sbtc-crowdfund'
+description = 'Bitcoin-backed milestone crowdfunding for Stacks builders'
+authors = []
+telemetry = false
+cache_dir = './.cache'
+
+[contracts.sbtc-crowdfund]
+path = 'contracts/sbtc-crowdfund.clar'
+clarity_version = 4
+epoch = 'latest'
+
+[repl.analysis]
+passes = ['check_checker']
+
+[repl.analysis.lints]
+
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
+
+[repl.remote_data]
+enabled = false
