@@ -1,14 +1,14 @@
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { categoryColors, CAMPAIGN_CATEGORIES } from "@/lib/categoryColors";
-import { truncateAddress, formatSTX, getDaysLeft, getProgressPercentage, mockCampaigns, mockContributions } from "@/data/mockData";
+import { truncateAddress, formatSTX, getDaysLeft, getProgressPercentage } from "@/data/mockData";
 import { getProgressColor } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useWallet } from "@/contexts/WalletContext";
+import { useWallet, request } from "@/contexts/WalletContext";
 import { useState } from "react";
 import ContributeModal from "@/components/ContributeModal";
 import TransactionStatusModal, { TransactionStatus } from "@/components/TransactionStatusModal";
@@ -20,7 +20,10 @@ import ImageWithFallback from "@/components/ImageWithFallback";
 import { ArrowLeft, Calendar, Check, Clock, Copy, ExternalLink, FileText, MessageSquare, Share2, User, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import PageTransition from "@/components/PageTransition";
-import { useCampaign, useCampaignContributions, useCampaignUpdates } from "@/hooks/useCampaigns";
+import { useCampaign, useCampaignContributions, useCampaignUpdates, useMyContribution } from "@/hooks/useCampaigns";
+import { Cl, Pc } from "@stacks/transactions";
+import { CONTRACT_ADDRESS, CONTRACT_NAME, NETWORK, stxToUstx, waitForTransaction, explorerTxUrl, explorerAddressUrl } from "@/lib/stacks";
+import { useQueryClient } from "@tanstack/react-query";
 
 const statusColors: Record<string, string> = {
   active: "bg-success/20 text-success border-success/30",
@@ -40,9 +43,12 @@ export default function CampaignDetail() {
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txStatus, setTxStatus] = useState<TransactionStatus>("signing");
   const [txAmount, setTxAmount] = useState("");
+  const [txHash, setTxHash] = useState("");
   const [backersOpen, setBackersOpen] = useState(false);
-  const { wallet } = useWallet();
+  const { wallet, refreshBalance } = useWallet();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: myContribution } = useMyContribution(campaignId, wallet.address);
 
   const copyCreatorAddress = async () => {
     if (campaign) {
@@ -51,14 +57,123 @@ export default function CampaignDetail() {
     }
   };
 
-  const handleContribute = (amount: string) => {
+  const handleContribute = async (amount: string) => {
     setTxAmount(amount);
     setContributeOpen(false);
     setTxStatus("signing");
     setTxModalOpen(true);
-    setTimeout(() => setTxStatus("broadcasting"), 2000);
-    setTimeout(() => setTxStatus("pending"), 4000);
-    setTimeout(() => setTxStatus("success"), 6000);
+    setTxHash("");
+
+    try {
+      const amountUstx = stxToUstx(Number(amount));
+
+      // Post condition: user will send exactly this amount of STX
+      const postCondition = Pc.principal(wallet.address!)
+        .willSendEq(amountUstx)
+        .ustx();
+
+      const result = await request("stx_callContract", {
+        contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
+        functionName: "contribute",
+        functionArgs: [
+          Cl.uint(campaignId),
+          Cl.uint(amountUstx),
+        ],
+        network: NETWORK,
+        postConditions: [postCondition],
+        postConditionMode: "deny",
+      });
+
+      const resultTxId = result.txid || result.txId || "";
+      setTxHash(resultTxId);
+      setTxStatus("broadcasting");
+      setTimeout(() => setTxStatus("pending"), 2000);
+
+      const confirmation = await waitForTransaction(resultTxId);
+      if (confirmation.success) {
+        setTxStatus("success");
+        queryClient.invalidateQueries({ queryKey: ["campaign", campaignId] });
+        queryClient.invalidateQueries({ queryKey: ["contribution", campaignId] });
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        refreshBalance();
+      } else {
+        setTxStatus("error");
+      }
+    } catch (err) {
+      console.error("Contribute failed:", err);
+      setTxStatus("error");
+    }
+  };
+
+  const handleCompleteMilestone = async (milestoneId: number) => {
+    setTxStatus("signing");
+    setTxModalOpen(true);
+    setTxHash("");
+
+    try {
+      const result = await request("stx_callContract", {
+        contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
+        functionName: "complete-milestone",
+        functionArgs: [
+          Cl.uint(campaignId),
+          Cl.uint(milestoneId),
+        ],
+        network: NETWORK,
+        postConditionMode: "allow",
+      });
+
+      const resultTxId = result.txid || result.txId || "";
+      setTxHash(resultTxId);
+      setTxStatus("broadcasting");
+      setTimeout(() => setTxStatus("pending"), 2000);
+
+      const confirmation = await waitForTransaction(resultTxId);
+      if (confirmation.success) {
+        setTxStatus("success");
+        queryClient.invalidateQueries({ queryKey: ["campaign", campaignId] });
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        refreshBalance();
+      } else {
+        setTxStatus("error");
+      }
+    } catch (err) {
+      console.error("Complete milestone failed:", err);
+      setTxStatus("error");
+    }
+  };
+
+  const handleClaimRefund = async () => {
+    setTxStatus("signing");
+    setTxModalOpen(true);
+    setTxHash("");
+
+    try {
+      const result = await request("stx_callContract", {
+        contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
+        functionName: "claim-refund",
+        functionArgs: [Cl.uint(campaignId)],
+        network: NETWORK,
+        postConditionMode: "allow",
+      });
+
+      const resultTxId = result.txid || result.txId || "";
+      setTxHash(resultTxId);
+      setTxStatus("broadcasting");
+      setTimeout(() => setTxStatus("pending"), 2000);
+
+      const confirmation = await waitForTransaction(resultTxId);
+      if (confirmation.success) {
+        setTxStatus("success");
+        queryClient.invalidateQueries({ queryKey: ["campaign", campaignId] });
+        queryClient.invalidateQueries({ queryKey: ["contribution", campaignId] });
+        refreshBalance();
+      } else {
+        setTxStatus("error");
+      }
+    } catch (err) {
+      console.error("Claim refund failed:", err);
+      setTxStatus("error");
+    }
   };
 
   if (isError) {
@@ -162,9 +277,8 @@ export default function CampaignDetail() {
                   <p className="font-mono text-sm text-foreground">{truncateAddress(campaign.creator)}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><User className="h-3 w-3" /> Member since {campaign.createdAt.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
-                    <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {mockCampaigns.filter(c => c.creator === campaign.creator).length} campaigns</span>
                   </div>
-                  <a href="#" className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline" rel="noopener noreferrer">
+                  <a href={explorerAddressUrl(campaign.creator)} target="_blank" className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline" rel="noopener noreferrer">
                     <ExternalLink className="h-3 w-3" /> View on Explorer
                   </a>
                 </div>
@@ -189,6 +303,18 @@ export default function CampaignDetail() {
                         <p className="mt-1 text-sm text-muted-foreground">
                           {milestone.completed ? "Completed" : "Pending"} · {formatSTX(Math.round(campaign.goalAmount * milestone.percentage / 100))} STX
                         </p>
+                        {/* Complete milestone button for campaign creator */}
+                        {!milestone.completed && wallet.connected && wallet.address === campaign.creator && 
+                         i === campaign.milestones.filter(m => m.completed).length && 
+                         campaign.status === "funded" && (
+                          <Button
+                            size="sm"
+                            className="mt-2 gradient-orange border-0 text-primary-foreground hover:opacity-90"
+                            onClick={() => handleCompleteMilestone(milestone.id)}
+                          >
+                            Complete Milestone
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -326,28 +452,29 @@ export default function CampaignDetail() {
             </Card>
 
             {/* Your Contribution */}
-            {wallet.connected && (() => {
-                const myContrib = mockContributions.filter(c => c.backer === wallet.address && c.campaignId === campaign.id);
-                const totalContrib = myContrib.reduce((sum, c) => sum + c.amount, 0);
-                const latestContrib = myContrib[0];
-                if (totalContrib === 0) return null;
-                return (
+            {wallet.connected && myContribution && myContribution.amount > 0 && (
               <Card className="border-primary/20 bg-card">
                 <CardHeader className="pb-3">
                   <CardTitle className="font-display text-base">Your Contribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="font-display text-2xl font-bold text-primary">{formatSTX(totalContrib)} STX</p>
-                  <p className="text-xs text-muted-foreground mt-1">Contributed on {latestContrib?.timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                  {campaign.status === "failed" && (
-                    <Button variant="outline" size="sm" className="mt-4 w-full border-destructive text-destructive hover:bg-destructive/10">
+                  <p className="font-display text-2xl font-bold text-primary">{formatSTX(myContribution.amount)} STX</p>
+                  {myContribution.refunded && (
+                    <p className="text-xs text-muted-foreground mt-1">Refund claimed</p>
+                  )}
+                  {campaign.status === "failed" && !myContribution.refunded && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 w-full border-destructive text-destructive hover:bg-destructive/10"
+                      onClick={handleClaimRefund}
+                    >
                       Claim Refund
                     </Button>
                   )}
                 </CardContent>
               </Card>
-                );
-              })()}
+            )}
           </div>
         </div>
       </div>
@@ -389,12 +516,10 @@ export default function CampaignDetail() {
         status={txStatus}
         amount={txAmount}
         campaignTitle={campaign.title}
-        txHash="0x8a3f...b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8"
+        txHash={txHash}
+        explorerUrl={txHash ? explorerTxUrl(txHash) : undefined}
         onRetry={() => {
-          setTxStatus("signing");
-          setTimeout(() => setTxStatus("broadcasting"), 2000);
-          setTimeout(() => setTxStatus("pending"), 4000);
-          setTimeout(() => setTxStatus("success"), 6000);
+          if (txAmount) handleContribute(txAmount);
         }}
       />
     </Layout>

@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import ConnectWalletModal from "@/components/ConnectWalletModal";
 import CommandMenu from "@/components/CommandMenu";
 import Identicon from "@/components/Identicon";
 import { useToast } from "@/hooks/use-toast";
@@ -25,8 +24,7 @@ const navLinks = [
 ];
 
 export default function Navbar({ scrolled }: { scrolled?: boolean }) {
-  const { wallet, disconnectWallet } = useWallet();
-  const [connectOpen, setConnectOpen] = useState(false);
+  const { wallet, connectWallet, disconnectWallet } = useWallet();
   const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
@@ -112,7 +110,7 @@ export default function Navbar({ scrolled }: { scrolled?: boolean }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button onClick={() => setConnectOpen(true)} className="gap-2 gradient-orange border-0 text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-transform">
+              <Button onClick={() => connectWallet()} className="gap-2 gradient-orange border-0 text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-transform">
                 <Wallet className="h-4 w-4" /> Connect Wallet
               </Button>
             )}
@@ -153,7 +151,7 @@ export default function Navbar({ scrolled }: { scrolled?: boolean }) {
                       <LogOut className="h-4 w-4" /> Disconnect
                     </Button>
                   ) : (
-                    <Button onClick={() => { setConnectOpen(true); setSheetOpen(false); }} className="w-full gap-2 gradient-orange border-0 text-primary-foreground">
+                    <Button onClick={() => { connectWallet(); setSheetOpen(false); }} className="w-full gap-2 gradient-orange border-0 text-primary-foreground">
                       <Wallet className="h-4 w-4" /> Connect Wallet
                     </Button>
                   )}
@@ -164,8 +162,6 @@ export default function Navbar({ scrolled }: { scrolled?: boolean }) {
           </div>
         </div>
       </nav>
-
-      <ConnectWalletModal open={connectOpen} onOpenChange={setConnectOpen} />
     </>
   );
 }
