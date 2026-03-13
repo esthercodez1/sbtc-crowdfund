@@ -9,13 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import TransactionStatusModal, { TransactionStatus } from "@/components/TransactionStatusModal";
-import { useWallet } from "@/contexts/WalletContext";
+import { useWallet, request } from "@/contexts/WalletContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PageTransition from "@/components/PageTransition";
 import { CampaignCategory } from "@/types/campaign";
 import { CAMPAIGN_CATEGORIES } from "@/lib/categoryColors";
 import { Slider } from "@/components/ui/slider";
 import CampaignCard from "@/components/CampaignCard";
+import { Cl } from "@stacks/transactions";
+import { CONTRACT_ADDRESS, CONTRACT_NAME, NETWORK, stxToUstx, getCurrentBlockHeight, waitForTransaction, explorerTxUrl } from "@/lib/stacks";
+import { useQueryClient } from "@tanstack/react-query";
 
 const steps = ["Basic Info", "Funding Goal", "Milestones", "Review"];
 
@@ -66,7 +69,9 @@ export default function CreateCampaign() {
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txStatus, setTxStatus] = useState<TransactionStatus>("signing");
   const [draftBanner, setDraftBanner] = useState(!!draft.current);
+  const [txHash, setTxHash] = useState("");
   const { wallet } = useWallet();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     document.title = "Create Campaign | sBTCFund";
@@ -163,15 +168,54 @@ export default function CreateCampaign() {
     if (validateStep()) setStep(step + 1);
   };
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     setTxStatus("signing");
     setTxModalOpen(true);
-    setTimeout(() => setTxStatus("broadcasting"), 2000);
-    setTimeout(() => setTxStatus("pending"), 4000);
-    setTimeout(() => {
-      setTxStatus("success");
-      localStorage.removeItem(DRAFT_KEY);
-    }, 6000);
+    setTxHash("");
+
+    try {
+      const goalUstx = stxToUstx(Number(goal));
+      const blockHeight = await getCurrentBlockHeight();
+      // ~144 blocks per day
+      const deadlineBlock = blockHeight + Number(duration) * 144;
+
+      const descriptions = milestones.map((m) => Cl.stringAscii(m.description));
+      const percentages = milestones.map((m) => Cl.uint(m.percentage));
+
+      const result = await request("stx_callContract", {
+        contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
+        functionName: "create-campaign",
+        functionArgs: [
+          Cl.stringAscii(title.slice(0, 64)),
+          Cl.uint(goalUstx),
+          Cl.uint(deadlineBlock),
+          Cl.list(descriptions),
+          Cl.list(percentages),
+        ],
+        network: NETWORK,
+        postConditionMode: "allow",
+      });
+
+      const resultTxId = result.txid || result.txId || "";
+      setTxHash(resultTxId);
+      setTxStatus("broadcasting");
+
+      // Wait a moment then switch to pending
+      setTimeout(() => setTxStatus("pending"), 2000);
+
+      const confirmation = await waitForTransaction(resultTxId);
+      if (confirmation.success) {
+        setTxStatus("success");
+        localStorage.removeItem(DRAFT_KEY);
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      } else {
+        setTxStatus("error");
+      }
+    } catch (err: unknown) {
+      console.error("Create campaign failed:", err);
+      // User rejected or wallet error
+      setTxStatus("error");
+    }
   };
 
   // Build a preview campaign for the review step
@@ -528,7 +572,8 @@ export default function CreateCampaign() {
         onOpenChange={setTxModalOpen}
         status={txStatus}
         campaignTitle={title}
-        txHash="0x7c2e...a1b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7"
+        txHash={txHash}
+        explorerUrl={txHash ? explorerTxUrl(txHash) : undefined}
         onRetry={handleLaunch}
         onClose={() => setTxModalOpen(false)}
       />
