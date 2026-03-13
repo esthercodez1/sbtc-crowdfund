@@ -12,7 +12,6 @@ import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Wallet, Coins, RefreshCw, FolderOpen } from "lucide-react";
-import ConnectWalletModal from "@/components/ConnectWalletModal";
 import Identicon from "@/components/Identicon";
 import { useToast } from "@/hooks/use-toast";
 import PageTransition from "@/components/PageTransition";
@@ -25,8 +24,7 @@ const containerVariants = {
 };
 
 export default function Profile() {
-  const { wallet } = useWallet();
-  const [connectOpen, setConnectOpen] = useState(false);
+  const { wallet, connectWallet } = useWallet();
   const { toast } = useToast();
   const { data: allCampaigns = [], isLoading: campaignsLoading } = useCampaigns();
 
@@ -49,9 +47,8 @@ export default function Profile() {
           title="Connect Your Wallet"
           description="Connect your wallet to view your profile and campaigns"
           actionLabel="Connect Wallet"
-          onAction={() => setConnectOpen(true)}
+          onAction={() => connectWallet()}
         />
-        <ConnectWalletModal open={connectOpen} onOpenChange={setConnectOpen} />
       </Layout>
       </PageTransition>
     );

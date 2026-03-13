@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, Home, FolderOpen, Plus, User, Wallet } from "lucide-react";
-import { mockCampaigns } from "@/data/mockData";
+import { useCampaigns } from "@/hooks/useCampaigns";
 import { useWallet } from "@/contexts/WalletContext";
 
 const pages = [
@@ -16,6 +16,7 @@ export default function CommandMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { wallet } = useWallet();
+  const { data: campaigns = [] } = useCampaigns();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -55,13 +56,15 @@ export default function CommandMenu() {
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandGroup heading="Campaigns">
-            {mockCampaigns.map((c) => (
-              <CommandItem key={c.id} onSelect={() => go(`/campaign/${c.id}`)} className="gap-2 cursor-pointer">
-                <FolderOpen className="h-4 w-4" /> {c.title}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          {campaigns.length > 0 && (
+            <CommandGroup heading="Campaigns">
+              {campaigns.map((c) => (
+                <CommandItem key={c.id} onSelect={() => go(`/campaign/${c.id}`)} className="gap-2 cursor-pointer">
+                  <FolderOpen className="h-4 w-4" /> {c.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
           {!wallet.connected && (
             <CommandGroup heading="Actions">
               <CommandItem className="gap-2 cursor-pointer">
