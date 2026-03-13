@@ -12,6 +12,7 @@ interface Props {
   amount?: string;
   campaignTitle?: string;
   txHash?: string;
+  explorerUrl?: string;
   errorMessage?: string;
   onRetry?: () => void;
   onClose?: () => void;
@@ -88,6 +89,7 @@ export default function TransactionStatusModal({
   amount,
   campaignTitle,
   txHash,
+  explorerUrl,
   errorMessage,
   onRetry,
   onClose,
@@ -142,7 +144,7 @@ export default function TransactionStatusModal({
               <Button
                 variant="outline"
                 className="gap-2 border-border"
-                onClick={() => window.open(`https://explorer.stacks.co/txid/${txHash || ""}?chain=testnet`, "_blank")}
+                onClick={() => window.open(explorerUrl || `https://explorer.hiro.so/txid/${txHash || ""}?chain=testnet`, "_blank")}
               >
                 <ExternalLink className="h-4 w-4" /> View on Explorer
               </Button>

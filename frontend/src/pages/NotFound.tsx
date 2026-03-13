@@ -4,12 +4,12 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Home, Search } from "lucide-react";
 import PageTransition from "@/components/PageTransition";
-import { mockCampaigns } from "@/data/mockData";
+import { useCampaigns } from "@/hooks/useCampaigns";
 import CampaignCard from "@/components/CampaignCard";
 
-const suggestedCampaigns = mockCampaigns.filter((c) => c.status === "active").slice(0, 3);
-
 const NotFound = () => {
+  const { data: campaigns = [] } = useCampaigns();
+  const suggestedCampaigns = campaigns.filter((c) => c.status === "active").slice(0, 3);
   return (
     <PageTransition>
       <Layout>
