@@ -16,3 +16,4 @@
 (define-constant ERR_GOAL_REACHED (err u1006))
 (define-constant ERR_MILESTONE_INVALID (err u1007))
 (define-constant ERR_ALREADY_CLAIMED (err u1008))
+(define-constant ERR_NO_CONTRIBUTION (err u1009))
