@@ -17,3 +17,4 @@
 (define-constant ERR_MILESTONE_INVALID (err u1007))
 (define-constant ERR_ALREADY_CLAIMED (err u1008))
 (define-constant ERR_NO_CONTRIBUTION (err u1009))
+(define-constant ERR_INVALID_AMOUNT (err u1010))
