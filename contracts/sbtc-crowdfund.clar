@@ -14,3 +14,4 @@
 (define-constant ERR_CAMPAIGN_NOT_ENDED (err u1004))
 (define-constant ERR_GOAL_NOT_REACHED (err u1005))
 (define-constant ERR_GOAL_REACHED (err u1006))
+(define-constant ERR_MILESTONE_INVALID (err u1007))
