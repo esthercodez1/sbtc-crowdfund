@@ -21,3 +21,4 @@
 (define-constant ERR_CAMPAIGN_FINALIZED (err u1011))
 (define-constant ERR_TRANSFER_FAILED (err u1012))
 (define-constant ERR_INVALID_DEADLINE (err u1013))
+(define-constant ERR_INVALID_MILESTONES (err u1014))
