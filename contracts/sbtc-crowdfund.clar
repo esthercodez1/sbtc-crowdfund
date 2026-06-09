@@ -10,3 +10,4 @@
 ;; ============================================================================
 (define-constant ERR_NOT_AUTHORIZED (err u1001))
 (define-constant ERR_CAMPAIGN_NOT_FOUND (err u1002))
+(define-constant ERR_CAMPAIGN_ENDED (err u1003))
