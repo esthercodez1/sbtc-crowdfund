@@ -19,3 +19,4 @@
 (define-constant ERR_NO_CONTRIBUTION (err u1009))
 (define-constant ERR_INVALID_AMOUNT (err u1010))
 (define-constant ERR_CAMPAIGN_FINALIZED (err u1011))
+(define-constant ERR_TRANSFER_FAILED (err u1012))
