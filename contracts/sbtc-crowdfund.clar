@@ -20,3 +20,4 @@
 (define-constant ERR_INVALID_AMOUNT (err u1010))
 (define-constant ERR_CAMPAIGN_FINALIZED (err u1011))
 (define-constant ERR_TRANSFER_FAILED (err u1012))
+(define-constant ERR_INVALID_DEADLINE (err u1013))
